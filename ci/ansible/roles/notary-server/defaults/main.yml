@@ -1,0 +1,17 @@
+---
+
+notary_server_version: server-0.5.0
+
+notary_server_registry: ''
+# notary_server_registry_user: undefined by default
+# notary_server_registry_password: undefined by default
+
+notary_server_repository: notary
+
+notary_server_migration_version: 0.5.0
+
+notary_server_migration_registry: ''
+# notary_server_migration_registry_user: undefined by default
+# notary_server_migration_registry_password: undefined by default
+
+notary_server_migration_repository: udyrfrykte/notary-migration

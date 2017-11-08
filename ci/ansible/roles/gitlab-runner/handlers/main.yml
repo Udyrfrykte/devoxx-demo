@@ -1,0 +1,20 @@
+---
+
+- name: restart gitlab-runner
+  become: true
+  docker_container:
+    name: gitlab-runner
+    image: "{{ gitlab_runner_registry }}{{ gitlab_runner_repository }}:{{ gitlab_runner_version }}"
+    etc_hosts: |
+      {
+        '{{ gitlab_external_fqdn }}': '{{ hostvars[groups['haproxy'][0]]['ansible_default_ipv4']['address'] }}',
+        '{{ gitlab_registry_external_fqdn }}': '{{ hostvars[groups['haproxy'][0]]['ansible_default_ipv4']['address'] }}',
+        '{{ registry_external_fqdn }}': '{{ hostvars[groups['haproxy'][0]]['ansible_default_ipv4']['address'] }}',
+        '{{ portus_external_fqdn }}': '{{ hostvars[groups['haproxy'][0]]['ansible_default_ipv4']['address'] }}'
+      }
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/docker-data/gitlab-runner/config:/etc/gitlab-runner
+    state: started
+    recreate: true
+    restart_policy: unless-stopped

@@ -1,0 +1,34 @@
+version: 0.1
+log:
+  fields:
+    service: registry
+storage:
+  cache:
+    blobdescriptor: inmemory
+  filesystem:
+    rootdirectory: /var/lib/docker-registry
+  delete:
+    enabled: true
+http:
+  addr: :5000
+  headers:
+    X-Content-Type-Options: [nosniff]
+health:
+  storagedriver:
+    enabled: true
+    interval: 10s
+{% if registry_use_portus %}
+auth:
+  token:
+    realm: https://{{ portus_external_fqdn }}/v2/token
+    service: {{ registry_external_fqdn }}
+    issuer: {{ portus_external_fqdn }}
+    rootcertbundle: /etc/docker/registry/portus.crt
+notifications:
+  endpoints:
+    - name: portus
+      url: https://{{ portus_external_fqdn }}/v2/webhooks/events
+      timeout: 2000ms
+      threshold: 5
+      backoff: 1s
+{% endif %}

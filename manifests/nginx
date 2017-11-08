@@ -1,0 +1,13 @@
+---
+
+maintainers:
+- Benoît GASTINNE bgastinne@octo.com (@bgastinne)
+- Arnaud MAZIN amazin@octo.com (@amazin)
+
+repository: 'devs/nginx'
+
+tags:
+  'latest': 8e1be06d7bc2dc24efce9390b0e7dbaf48879b5e
+  '1': 8e1be06d7bc2dc24efce9390b0e7dbaf48879b5e
+  '1.11': 8e1be06d7bc2dc24efce9390b0e7dbaf48879b5e
+  '1.11.12': 8e1be06d7bc2dc24efce9390b0e7dbaf48879b5e

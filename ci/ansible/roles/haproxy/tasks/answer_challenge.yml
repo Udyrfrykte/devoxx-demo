@@ -1,0 +1,32 @@
+---
+
+- name: templatize challenge server
+  become: true
+  template:
+    src: challenge_server.py.j2
+    dest: /tmp/challenge_server.py
+
+- name: run challenge server
+  become: true
+  command: python /tmp/challenge_server.py
+  async: 120
+  poll: 0
+  register: challenge_server_job
+
+- name: verify challenge
+  local_action: letsencrypt
+  args:
+    acme_directory: 'https://acme-v01.api.letsencrypt.org/directory'
+    account_key: "{{ playbook_dir }}/openssl-ca/intermediate/private/intermediate.key.pem"
+    csr: "{{ playbook_dir }}/openssl-ca/intermediate/csr/{{ item.item }}.csr.pem"
+    dest: "{{ playbook_dir }}/openssl-ca/certs/{{ item.item }}_letsencrypt.cert.pem"
+    data: "{{ item }}"
+
+- name: check that the server finished
+  become: true
+  async_status:
+    jid: "{{ challenge_server_job.ansible_job_id }}"
+  register: challenge_server_job_result
+  until: challenge_server_job_result.finished
+  retries: 60
+  delay: 2

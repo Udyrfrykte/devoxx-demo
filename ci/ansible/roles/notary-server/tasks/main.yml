@@ -1,0 +1,117 @@
+---
+
+- name: Creates directories for notary-server data and config
+  become: true
+  file:
+    path: /opt/docker-data/notary-server/config
+    state: directory
+
+- name: Log in to registry (notary-server)
+  become: true
+  docker_login:
+    registry: "{{ notary_server_registry }}"
+    username: "{{ notary_server_registry_user }}"
+    password: "{{ notary_server_registry_password }}"
+    reauthorize: yes
+  when: notary_server_registry_user is defined and notary_server_registry_password is defined
+
+- name: Log in to registry (notary-server migration)
+  become: true
+  docker_login:
+    registry: "{{ notary_server_migration_registry }}"
+    username: "{{ notary_server_migration_registry_user }}"
+    password: "{{ notary_server_migration_registry_password }}"
+    reauthorize: yes
+  when: notary_server_migration_registry_user is defined and notary_server_migration_registry_password is defined
+
+- name: Pull notary-server image
+  become: true
+  docker_image:
+    name: "{{ notary_server_registry }}{{ notary_server_repository }}"
+    tag: "{{ notary_server_version }}"
+    state: present
+    force: true
+
+- name: Pull notary-server migration image
+  become: true
+  docker_image:
+    name: "{{ notary_server_migration_registry }}{{ notary_server_migration_repository }}"
+    tag: "{{ notary_server_migration_version }}"
+    state: present
+    force: true
+
+- name: Clean token
+  become: true
+  file:
+    dest: /root/.docker/config.json
+    state: absent
+
+- name: Create client key
+  run_once: true
+  local_action: command openssl genrsa -out {{ playbook_dir }}/openssl-ca/intermediate/private/notary-signer.{{ root_fqdn }}_client.key.pem 2048
+  args:
+    creates: "{{ playbook_dir }}/openssl-ca/intermediate/private/notary-signer.{{ root_fqdn }}_client.key.pem"
+
+- name: Create client csr
+  run_once: true
+  local_action: command openssl req -config {{ playbook_dir }}/openssl-ca/intermediate/openssl.cnf -key {{ playbook_dir }}/openssl-ca/intermediate/private/notary-signer.{{ root_fqdn }}_client.key.pem -new -out {{ playbook_dir }}/openssl-ca/intermediate/csr/notary-signer.{{ root_fqdn }}_client.csr.pem  -subj '/C=FR/ST=France/O=OCTO pour RIE/CN=notary-signer.{{ root_fqdn }}_client'
+  args:
+    creates: "{{ playbook_dir }}/openssl-ca/intermediate/csr/notary-signer.{{ root_fqdn }}_client.csr.pem"
+
+- name: Create client cert
+  run_once: true
+  local_action: shell echo "y\ny" | openssl ca -config {{ playbook_dir }}/openssl-ca/intermediate/openssl.cnf -extensions usr_cert -days 100 -notext -in {{ playbook_dir }}/openssl-ca/intermediate/csr/notary-signer.{{ root_fqdn }}_client.csr.pem -out {{ playbook_dir }}/openssl-ca/intermediate/certs/notary-signer.{{ root_fqdn }}_client.cert.pem
+  args:
+    creates: "{{ playbook_dir }}/openssl-ca/intermediate/certs/notary-signer.{{ root_fqdn }}_client.cert.pem"
+
+- name: Install root cert
+  become: true
+  copy:
+    src: "{{ playbook_dir }}/openssl-ca/certs/ca.cert.pem"
+    dest: /opt/docker-data/notary-server/config/ca.pem
+    mode: 0644
+  notify: restart notary-server
+
+- name: Install client cert
+  become: true
+  copy:
+    content: |
+      {{ lookup('file', playbook_dir + '/openssl-ca/intermediate/certs/notary-signer.' + root_fqdn + '_client.cert.pem' )}}
+      {{ lookup('file', playbook_dir + '/openssl-ca/intermediate/certs/ca-chain.cert.pem' )}}
+    dest: /opt/docker-data/notary-server/config/client.pem
+    mode: 0644
+  notify: restart notary-server
+
+- name: Install client key
+  become: true
+  copy:
+    src: "{{ playbook_dir }}/openssl-ca/intermediate/private/notary-signer.{{ root_fqdn }}_client.key.pem"
+    dest: /opt/docker-data/notary-server/config/client.key
+    owner: 1000
+    mode: 0600
+  notify: restart notary-server
+
+- name: Configure notary-server
+  become: true
+  template:
+    src: server.json.j2
+    dest: /opt/docker-data/notary-server/config/server.json
+  notify: restart notary-server
+
+- name: Run DB migration
+  become: true
+  docker_container:
+    name: notary-server-migration
+    image: "{{ notary_server_migration_registry }}{{ notary_server_migration_repository }}:{{ notary_server_migration_version }}"
+    env:
+      SERVICE_NAME: notary_server
+      MIGRATIONS_PATH: migrations/server/postgresql
+      DB_URL: "postgres://{{ notary_server_db_user }}:{{ notary_server_db_password }}@{{ notary_server_db_host }}:{{ notary_server_db_port }}/{{ notary_server_db }}?sslmode=disable"
+    state: started
+    recreate: true
+    detach: false
+    cleanup: true
+
+- include: docker_command.yml
+  vars:
+    docker_restart: false

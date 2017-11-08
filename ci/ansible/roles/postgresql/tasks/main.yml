@@ -1,0 +1,46 @@
+---
+
+- name: Create directory for postgres data
+  become: true
+  file:
+    path: "/opt/docker-data/{{ postgresql_container_name | mandatory }}/data/"
+    state: directory
+
+- name: Log in to registry
+  become: true
+  docker_login:
+    registry: "{{ postgresql_registry }}"
+    username: "{{ postgresql_registry_user }}"
+    password: "{{ postgresql_registry_password }}"
+    reauthorize: yes
+  when: postgresql_registry_user is defined and postgresql_registry_password is defined
+
+- name: Pull postgres image
+  become: true
+  docker_image:
+    name: "{{ postgresql_registry }}{{ postgresql_repository }}"
+    tag: "{{ postgresql_version }}"
+    state: present
+    force: true
+
+- name: Clean token
+  become: true
+  file:
+    dest: /root/.docker/config.json
+    state: absent
+
+- name: Launch postgres container
+  become: true
+  docker_container:
+    name: "{{ postgresql_container_name | mandatory }}"
+    image: "{{ postgresql_registry }}{{ postgresql_repository }}:{{ postgresql_version }}"
+    published_ports:
+      - "{{ postgresql_port }}:5432"
+    volumes:
+      - "/opt/docker-data/{{ postgresql_container_name | mandatory }}/data/:/var/lib/postgresql/data/"
+    env:
+      POSTGRES_USER: "{{ postgresql_user | mandatory }}"
+      POSTGRES_DB: "{{ postgresql_db | mandatory }}"
+      POSTGRES_PASSWORD: "{{ postgresql_password | mandatory }}"
+    state: started
+    restart_policy: unless-stopped

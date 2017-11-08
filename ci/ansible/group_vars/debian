@@ -1,0 +1,8 @@
+---
+
+# ansible_ssh_user: debian
+if_name: eth0
+vm_debian_net_ifname: "{{ if_name }}"
+
+docker_package: 1.12.6-0~debian-jessie
+docker_repo: deb https://apt.dockerproject.org/repo debian-jessie main

@@ -1,0 +1,9 @@
+---
+
+- name: Configure registry connection
+  become: true
+  shell: >
+    docker exec portus rake portus:create_registry['registry','{{ registry_external_fqdn }}',true]
+    && touch /opt/docker-data/portus/install-flags/create_registry
+  args:
+    creates: /opt/docker-data/portus/install-flags/create_registry

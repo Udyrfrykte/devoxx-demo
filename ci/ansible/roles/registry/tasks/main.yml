@@ -1,0 +1,91 @@
+---
+
+- name: Creates directories for registry data and config
+  become: true
+  file:
+    path: "/opt/docker-data/registry/{{ item }}"
+    state: directory
+  with_items:
+    - data
+    - config
+
+- block:
+    - name: Log in to registry
+      become: true
+      docker_login:
+        registry: "{{ registry_registry }}"
+        username: "{{ registry_registry_user }}"
+        password: "{{ registry_registry_password }}"
+        reauthorize: yes
+      when: registry_registry_user is defined and registry_registry_password is defined
+
+    - name: Pull registry image
+      become: true
+      docker_image:
+        name: "{{ registry_registry }}{{ registry_repository }}"
+        tag: "{{ registry_version }}"
+        state: present
+        force: true
+
+    - name: Clean token
+      become: true
+      file:
+        dest: /root/.docker/config.json
+        state: absent
+
+  when: registry_bootstrap_image is not defined
+
+- block:
+    - name: Copy registry image
+      become: true
+      copy:
+        src: "{{ registry_bootstrap_image }}"
+        dest: /root/registry_image.docker
+
+    - name: Load registry image
+      become: true
+      docker_image:
+        load_path: /root/registry_image.docker
+        name: "{{ registry_registry }}{{ registry_repository }}"
+        tag: "{{ registry_version }}"
+        state: present
+        force: true
+
+  when: registry_bootstrap_image is defined
+
+- name: Configure registry
+  become: true
+  template:
+    src: config.yml.j2
+    dest: /opt/docker-data/registry/config/config.yml
+  notify: restart registry
+
+- name: Copy portus cert
+  become: true
+  copy:
+    content: |
+      {{ lookup('file', playbook_dir + '/openssl-ca/intermediate/certs/' + portus_external_fqdn + '_oauth2.cert.pem' )}}
+      {{ lookup('file', playbook_dir + '/openssl-ca/intermediate/certs/ca-chain.cert.pem' )}}
+    dest: /opt/docker-data/registry/config/portus.crt
+  when: registry_use_portus
+  notify: restart registry
+
+- name: Populate registry data directory
+  become: true
+  unarchive:
+    src: "{{ registry_bootstrap_data }}"
+    dest: /opt/docker-data/registry/data/
+  when: registry_bootstrap_data is defined
+
+- name: Runs docker registry
+  become: true
+  docker_container:
+    name: registry
+    image: "{{ registry_registry }}{{ registry_repository }}:{{ registry_version }}"
+    published_ports:
+      - '{{ registry_port }}:5000'
+    volumes:
+      - '/opt/docker-data/registry/data:/var/lib/docker-registry'
+      - '/opt/docker-data/registry/config:/etc/docker/registry'
+    state: started
+    restart_policy: unless-stopped

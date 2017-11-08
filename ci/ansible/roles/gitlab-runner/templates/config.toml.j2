@@ -1,0 +1,15 @@
+concurrent = 1
+check_interval = 0
+
+[[runners]]
+  name = "{{ inventory_hostname }}"
+  url = "https://{{ gitlab_external_fqdn }}"
+  token = "{{ gitlab_runner_token }}"
+  executor = "docker"
+  [runners.docker]
+    tls_verify = false
+    image = "docker:latest"
+    privileged = true
+    disable_cache = false
+  [runners.cache]
+    Insecure = false

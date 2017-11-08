@@ -1,0 +1,26 @@
+---
+
+- name: restart portus
+  become: true
+  docker_container:
+    name: portus
+    image: "{{ portus_registry }}{{ portus_repository }}:{{ portus_version }}"
+    published_ports:
+      - '{{ portus_port }}:3000'
+    volumes:
+      - '/opt/docker-data/portus/config/config-local.yml:/portus/config/config-local.yml'
+      - '/opt/docker-data/portus/config/server.key:/portus/config/server.key'
+      # - '/opt/docker-data/portus/certs/:/etc/ssl/certs/'
+    env:
+      RAILS_ENV: production
+      PORTUS_SECRET_KEY_BASE: "{{ fetch_secret_key_base.stdout }}"
+      PORTUS_KEY_PATH: /portus/config/server.key
+      PORTUS_PASSWORD: "{{ fetch_password.stdout }}"
+      PORTUS_PRODUCTION_HOST: "{{ hostvars[groups['portus'][0]]['ansible_default_ipv4']['address'] }}"
+      PORTUS_PRODUCTION_USERNAME: portus
+      PORTUS_PRODUCTION_PASSWORD: portus
+      PORTUS_PRODUCTION_DATABASE: portus
+    command: 'puma -b tcp://0.0.0.0:3000 -w 3'
+    state: started
+    recreate: true
+    restart_policy: unless-stopped

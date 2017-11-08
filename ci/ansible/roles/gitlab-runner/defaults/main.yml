@@ -1,0 +1,9 @@
+---
+
+gitlab_runner_version: v1.11.1
+
+gitlab_runner_registry: ''
+# gitlab_runner_registry_user: undefined by default
+# gitlab_runner_registry_password: undefined by default
+
+gitlab_runner_repository: gitlab/gitlab-runner

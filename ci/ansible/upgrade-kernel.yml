@@ -1,0 +1,35 @@
+---
+
+- hosts: debian
+  tasks:
+    - name: install backport linux-base
+      become: true
+      apt:
+        name: linux-base=4.*
+        state: present
+    - name: install backport kernel
+      become: true
+      apt:
+        name: linux-image-4.9.0-0.bpo.2-amd64
+        state: present
+    - name: fire and forget a reboot action
+      become: true
+      shell: sleep 5; reboot
+      async: 1
+      poll: 0
+      changed_when: true
+    - name: give the vm time to shut down
+      pause:
+        seconds: 10
+    - name: Wait for the server to come up
+      local_action: wait_for
+      args:
+        host: "{{ ansible_host }}"
+        port: 22
+        delay: 10
+        timeout: 600
+    - name: wait a bit
+      pause:
+        seconds: 10
+    - name: check for a pulse
+      ping:

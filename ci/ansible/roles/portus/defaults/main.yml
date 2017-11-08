@@ -1,0 +1,9 @@
+---
+
+mariadb_version: 10.1.21
+
+mariadb_registry: ''
+# mariadb_registry_user: undefined by default
+# mariadb_registry_password: undefined by default
+
+mariadb_repository: mariadb

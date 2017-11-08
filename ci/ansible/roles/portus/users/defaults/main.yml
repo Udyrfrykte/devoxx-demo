@@ -1,0 +1,8 @@
+---
+
+portus_users: {}
+# portus_users:
+#   <username>:
+#     password: <password>
+#     mail: <mail>
+#     admin: <true|false>

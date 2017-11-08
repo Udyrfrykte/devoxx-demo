@@ -1,0 +1,19 @@
+---
+
+- name: restart notary-server
+  become: true
+  docker_container:
+    name: notary-server
+    image: "{{ notary_server_registry }}{{ notary_server_repository }}:{{ notary_server_version }}"
+    published_ports:
+      - '{{ notary_server_port }}:5100'
+    volumes:
+      - '/opt/docker-data/notary-server/config/:/etc/notary/'
+    etc_hosts: |
+      {
+        'notary-signer.{{ root_fqdn }}.internal': '{{ hostvars[groups['notary-signer'][0]]['ansible_default_ipv4']['address'] }}'
+      }
+    command: 'notary-server -config=/etc/notary/server.json'
+    state: started
+    recreate: "{{ docker_restart | default(false) }}"
+    restart_policy: unless-stopped

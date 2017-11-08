@@ -1,0 +1,11 @@
+---
+
+postgresql_version: 9.6.2
+
+postgresql_registry: ''
+# postgresql_registry_user: undefined by default
+# postgresql_registry_password: undefined by default
+
+postgresql_repository: postgres
+
+postgresql_port: 5432

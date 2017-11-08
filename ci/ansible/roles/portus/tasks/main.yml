@@ -1,0 +1,220 @@
+---
+
+- name: Creates directories for mariadb data
+  become: true
+  file:
+    path: /opt/docker-data/mariadb/data
+    state: directory
+
+- name: Log in to registry (portus)
+  become: true
+  docker_login:
+    registry: "{{ portus_registry }}"
+    username: "{{ portus_registry_user }}"
+    password: "{{ portus_registry_password }}"
+    reauthorize: yes
+  when: portus_registry_user is defined and portus_registry_password is defined
+
+- name: Log in to registry (mariadb)
+  become: true
+  docker_login:
+    registry: "{{ mariadb_registry }}"
+    username: "{{ mariadb_registry_user }}"
+    password: "{{ mariadb_registry_password }}"
+    reauthorize: yes
+  when: mariadb_registry_user is defined and mariadb_registry_password is defined
+
+- name: Pull portus image
+  become: true
+  docker_image:
+    name: "{{ portus_registry }}{{ portus_repository }}"
+    tag: "{{ portus_version }}"
+    state: present
+    force: true
+
+- name: Pull mariadb image
+  become: true
+  docker_image:
+    name: "{{ mariadb_registry }}{{ mariadb_repository }}"
+    tag: "{{ mariadb_version }}"
+    state: present
+    force: true
+
+- name: Clean token
+  become: true
+  file:
+    dest: /root/.docker/config.json
+    state: absent
+
+- name: Configure portus
+  become: true
+  template:
+    src: config-local.yml.j2
+    dest: /opt/docker-data/portus/config/config-local.yml
+  notify: restart portus
+
+- name: Create oauth2 key
+  run_once: true
+  local_action: command openssl genrsa -out {{ playbook_dir }}/openssl-ca/intermediate/private/{{ portus_external_fqdn }}_oauth2.key.pem 2048
+  args:
+    creates: "{{ playbook_dir }}/openssl-ca/intermediate/private/{{ portus_external_fqdn }}_oauth2.key.pem"
+
+- name: Create oauth2 csr
+  run_once: true
+  local_action: command openssl req -config {{ playbook_dir }}/openssl-ca/intermediate/openssl.cnf -key {{ playbook_dir }}/openssl-ca/intermediate/private/{{ portus_external_fqdn }}_oauth2.key.pem -new -out {{ playbook_dir }}/openssl-ca/intermediate/csr/{{ portus_external_fqdn }}_oauth2.csr.pem  -subj '/C=FR/ST=France/O=OCTO pour RIE/CN={{ portus_external_fqdn }}_oauth2'
+  args:
+    creates: "{{ playbook_dir }}/openssl-ca/intermediate/csr/{{ portus_external_fqdn }}_oauth2.csr.pem"
+
+- name: Create oauth2 cert
+  run_once: true
+  local_action: shell echo "y\ny" | openssl ca -config {{ playbook_dir }}/openssl-ca/intermediate/openssl.cnf -extensions server_cert -days 100 -notext -in {{ playbook_dir }}/openssl-ca/intermediate/csr/{{ portus_external_fqdn }}_oauth2.csr.pem -out {{ playbook_dir }}/openssl-ca/intermediate/certs/{{ portus_external_fqdn }}_oauth2.cert.pem
+  args:
+    creates: "{{ playbook_dir }}/openssl-ca/intermediate/certs/{{ portus_external_fqdn }}_oauth2.cert.pem"
+
+- name: Install oauth2 key
+  become: true
+  copy:
+    src: "{{ playbook_dir }}/openssl-ca/intermediate/private/{{ portus_external_fqdn }}_oauth2.key.pem"
+    dest: /opt/docker-data/portus/config/server.key
+    mode: 0600
+  notify: restart portus
+
+# - name: Populate CA directory
+#   become: true
+#   shell: docker run --rm {{ portus_registry }}{{ portus_repository }}:{{ portus_version }} tar -C /etc/ssl/certs -c . | tar -C /opt/docker-data/portus/certs/ -x
+#   args:
+#     creates: /opt/docker-data/portus/certs/ca-certificates.crt
+#
+# - name: Copy original ca-certificates.crt
+#   become: true
+#   shell: cp /opt/docker-data/portus/certs/ca-certificates.crt /opt/docker-data/portus/certs/ca-certificates.crt.orig
+#   args:
+#     creates: /opt/docker-data/portus/certs/ca-certificates.crt.orig
+#
+# - name: Install homemade root CA
+#   become: true
+#   copy:
+#     src: "{{ playbook_dir }}/openssl-ca/certs/ca.cert.pem"
+#     dest: /opt/docker-data/portus/certs/extra-ca.crt
+#     mode: 0644
+#   register: install_ca_result
+#
+# - name: Create symlinks
+#   become: true
+#   shell: |
+#     ln -s extra-ca.crt "$(openssl x509 -subject_hash -fingerprint -noout -in extra-ca.crt | head -n 1).0" &&
+#     ln -s extra-ca.crt "$(openssl x509 -subject_hash_old -fingerprint -noout -in extra-ca.crt | head -n 1).0"
+#   args:
+#     chdir: /opt/docker-data/portus/certs/
+#   when: install_ca_result|changed
+#   notify: restart portus
+#
+# - name: Update ca-certificates.crt
+#   become: true
+#   shell: >
+#     cat /opt/docker-data/portus/certs/ca-certificates.crt.orig /opt/docker-data/portus/certs/extra-ca.crt >| /opt/docker-data/portus/certs/ca-certificates.crt
+#   when: install_ca_result|changed
+#   notify: restart portus
+
+- name: Runs mariadb (from homemade docker image)
+  become: true
+  docker_container:
+    name: portus_db
+    image: "{{ mariadb_registry }}{{ mariadb_repository }}:{{ mariadb_version }}"
+    state: started
+    restart_policy: unless-stopped
+    published_ports:
+      - "{{ portus_db_port }}:3306"
+    env:
+      MYSQL_ROOT_PASSWORD: portus
+      MYSQL_DATABASE: portus
+      MYSQL_USER: portus
+      MYSQL_PASSWORD: portus
+    volumes:
+      - '/opt/docker-data/mariadb/data:/var/lib/mysql'
+
+# give mariadb time to come up...
+- name: DB Migrate
+  become: true
+  shell: >
+    docker run --rm
+    -e RAILS_ENV=production
+    -e PORTUS_SECRET_KEY_BASE="{{ fetch_secret_key_base.stdout }}"
+    -e PORTUS_KEY_PATH=/portus/config/server.key
+    -e PORTUS_PASSWORD="{{ fetch_password.stdout }}"
+    -e PORTUS_PRODUCTION_HOST="{{ hostvars[groups['portus'][0]]['ansible_default_ipv4']['address'] }}"
+    -e PORTUS_PRODUCTION_USERNAME=portus
+    -e PORTUS_PRODUCTION_PASSWORD=portus
+    -e PORTUS_PRODUCTION_DATABASE=portus
+    {{ portus_registry }}{{ portus_repository }}:{{ portus_version }}
+    rake db:migrate:reset
+    && touch /opt/docker-data/portus/install-flags/dbmigrate
+  args:
+    creates: /opt/docker-data/portus/install-flags/dbmigrate
+  register: result
+  until: not result | failed
+  retries: 3
+  delay: 10
+
+- name: DB Seed
+  become: true
+  shell: >
+    docker run --rm
+    -e RAILS_ENV=production
+    -e PORTUS_SECRET_KEY_BASE="{{ fetch_secret_key_base.stdout }}"
+    -e PORTUS_KEY_PATH=/portus/config/server.key
+    -e PORTUS_PASSWORD="{{ fetch_password.stdout }}"
+    -e PORTUS_PRODUCTION_HOST="{{ hostvars[groups['portus'][0]]['ansible_default_ipv4']['address'] }}"
+    -e PORTUS_PRODUCTION_USERNAME=portus
+    -e PORTUS_PRODUCTION_PASSWORD=portus
+    -e PORTUS_PRODUCTION_DATABASE=portus
+    {{ portus_registry }}{{ portus_repository }}:{{ portus_version }}
+    rake db:seed
+    && touch /opt/docker-data/portus/install-flags/dbseed
+  args:
+    creates: /opt/docker-data/portus/install-flags/dbseed
+
+- name: Runs portus (from homemade docker image)
+  become: true
+  docker_container:
+    name: portus
+    image: "{{ portus_registry }}{{ portus_repository }}:{{ portus_version }}"
+    published_ports:
+      - '{{ portus_port }}:3000'
+    volumes:
+      - '/opt/docker-data/portus/config/config-local.yml:/portus/config/config-local.yml'
+      - '/opt/docker-data/portus/config/server.key:/portus/config/server.key'
+      # - '/opt/docker-data/portus/certs/:/etc/ssl/certs/'
+    env:
+      RAILS_ENV: production
+      PORTUS_SECRET_KEY_BASE: "{{ fetch_secret_key_base.stdout }}"
+      PORTUS_KEY_PATH: /portus/config/server.key
+      PORTUS_PASSWORD: "{{ fetch_password.stdout }}"
+      PORTUS_PRODUCTION_HOST: "{{ hostvars[groups['portus'][0]]['ansible_default_ipv4']['address'] }}"
+      PORTUS_PRODUCTION_USERNAME: portus
+      PORTUS_PRODUCTION_PASSWORD: portus
+      PORTUS_PRODUCTION_DATABASE: portus
+    command: 'puma -b tcp://0.0.0.0:3000 -w 3'
+    state: started
+    restart_policy: unless-stopped
+
+- name: Runs crono (from homemade docker image)
+  become: true
+  docker_container:
+    name: crono
+    image: "{{ portus_registry }}{{ portus_repository }}:{{ portus_version }}"
+    volumes:
+      - '/opt/docker-data/portus/certs/:/etc/ssl/certs/'
+    env:
+      RAILS_ENV: production
+      PORTUS_SECRET_KEY_BASE: "{{ fetch_secret_key_base.stdout }}"
+      PORTUS_KEY_PATH: /portus/config/server.key
+      PORTUS_PASSWORD: "{{ fetch_password.stdout }}"
+      PORTUS_PRODUCTION_HOST: "{{ hostvars[groups['portus'][0]]['ansible_default_ipv4']['address'] }}"
+      PORTUS_PRODUCTION_USERNAME: portus
+      PORTUS_PRODUCTION_PASSWORD: portus
+      PORTUS_PRODUCTION_DATABASE: portus
+      CATALOG_CRON: 1.minutes
+    command: bin/crono
+    state: started
+    restart_policy: unless-stopped

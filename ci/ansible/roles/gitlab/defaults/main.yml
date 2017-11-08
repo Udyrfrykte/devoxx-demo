@@ -1,0 +1,9 @@
+---
+
+gitlab_version: 9.0.0-ce.0
+
+gitlab_registry: ''
+# gitlab_registry_user: undefined by default
+# gitlab_registry_password: undefined by default
+
+gitlab_repository: gitlab/gitlab-ce

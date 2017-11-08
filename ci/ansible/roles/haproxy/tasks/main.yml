@@ -1,0 +1,92 @@
+---
+
+- name: Create directories for haproxy config
+  become: true
+  file:
+    path: "/opt/docker-data/haproxy/{{ item }}"
+    state: directory
+  with_items:
+    - config
+    - config/certs
+
+- name: Create vhosts key
+  run_once: true
+  local_action: command openssl genrsa -out {{ playbook_dir }}/openssl-ca/intermediate/private/{{ item.value.public_fqdn }}.key.pem 2048
+  args:
+    creates: "{{ playbook_dir }}/openssl-ca/intermediate/private/{{ item.value.public_fqdn }}.key.pem"
+  when: not item.value.tcp|default(false)
+  with_dict: "{{ haproxy_services }}"
+
+- name: Create vhosts csr
+  run_once: true
+  local_action: command openssl req -config {{ playbook_dir }}/openssl-ca/intermediate/openssl.cnf -key {{ playbook_dir }}/openssl-ca/intermediate/private/{{ item.value.public_fqdn }}.key.pem -new -out {{ playbook_dir }}/openssl-ca/intermediate/csr/{{ item.value.public_fqdn }}.csr.pem  -subj '/C=FR/ST=France/O=OCTO pour RIE/CN={{ item.value.public_fqdn }}'
+  args:
+    creates: "{{ playbook_dir }}/openssl-ca/intermediate/csr/{{ item.value.public_fqdn }}.csr.pem"
+  when: not item.value.tcp|default(false)
+  with_dict: "{{ haproxy_services }}"
+
+- name: Log in to registry
+  become: true
+  docker_login:
+    registry: "{{ haproxy_registry }}"
+    username: "{{ haproxy_registry_user }}"
+    password: "{{ haproxy_registry_password }}"
+    reauthorize: yes
+  when: haproxy_registry_user is defined and haproxy_registry_password is defined
+
+- name: Pull haproxy image
+  become: true
+  docker_image:
+    name: "{{ haproxy_registry }}{{ haproxy_repository }}"
+    tag: "{{ haproxy_version }}"
+    state: present
+    force: true
+
+- name: Clean token
+  become: true
+  file:
+    dest: /root/.docker/config.json
+    state: absent
+
+- name: Configure haproxy
+  become: true
+  template:
+    src: haproxy.cfg.j2
+    dest: /opt/docker-data/haproxy/config/haproxy.cfg
+    mode: 0600
+  notify: restart haproxy
+
+- name: ask for letsencrypt challenges
+  local_action: letsencrypt
+  args:
+    acme_directory: 'https://acme-v01.api.letsencrypt.org/directory'
+    account_key: "{{ playbook_dir }}/openssl-ca/intermediate/private/intermediate.key.pem"
+    csr: "{{ playbook_dir }}/openssl-ca/intermediate/csr/{{ item }}.csr.pem"
+    dest: "{{ playbook_dir }}/openssl-ca/certs/{{ item }}_letsencrypt.cert.pem"
+  register: letsencrypt_result
+  with_items: "{{ haproxy_services | dictsort | map('last') | selectattr('public_fqdn', 'defined') | map(attribute='public_fqdn') | unique | list }}"
+
+- name: answer the challenges
+  include: answer_challenge.yml
+  when: "{{ item|changed }}"
+  with_items: "{{ letsencrypt_result.results }}"
+
+- name: Install haproxy's certificate (letsencrypt)
+  become: true
+  copy:
+    content: |
+      {{ lookup('file', playbook_dir + '/openssl-ca/certs/' + item.value.public_fqdn + '_letsencrypt.cert.pem' ) }}
+      {{ lookup('file', playbook_dir + '/openssl-ca/certs/lets-encrypt-x3-cross-signed.cert.pem' ) }}
+      {{ lookup('file', playbook_dir + '/openssl-ca/intermediate/private/' + item.value.public_fqdn + '.key.pem' ) }}
+    dest: /opt/docker-data/haproxy/config/certs/{{ item.value.public_fqdn }}.pem
+    mode: 0600
+  when: not item.value.tcp|default(false)
+  with_dict: "{{ haproxy_services }}"
+  notify: restart haproxy
+
+- debug:
+    var: haproxy_published_ports
+
+- include: docker_command.yml
+  vars:
+    docker_restart: false

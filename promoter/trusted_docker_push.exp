@@ -1,0 +1,6 @@
+spawn docker push $argv
+expect "Enter passphrase for repository key"
+send "$env(NOTARY_TARGETS_PASSPHRASE)\r"
+expect "Enter passphrase for repository key"
+send "$env(NOTARY_SNAPSHOT_PASSPHRASE)\r"
+expect eof

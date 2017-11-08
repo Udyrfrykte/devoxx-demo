@@ -1,0 +1,13 @@
+---
+
+# registry_bootstrap_image: ./registry_image.docker undefined by default
+# registry_bootstrap_data: ./registry_data.tgz undefined by default
+registry_use_portus: true
+
+registry_version: 2.6.0
+
+registry_registry: ''
+# registry_registry_user: undefined by default
+# registry_registry_password: undefined by default
+
+registry_repository: "registry"

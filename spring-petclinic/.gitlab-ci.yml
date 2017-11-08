@@ -1,0 +1,76 @@
+---
+
+variables:
+  DOCKER_VERSION: 17.03.0-ce
+  DOCKER_DRIVER: overlay2
+  DOCKER_HOST: tcp://localhost:2375
+  PETCLINIC_VERSION: '0.1'
+  CONTAINER_COMMIT_IMAGE: $CI_REGISTRY_IMAGE:$CI_BUILD_REF
+  CONTAINER_REF_IMAGE: $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:$PETCLINIC_VERSION
+  CONTAINER_LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
+  LOCAL_IMAGE: $CI_PROJECT_NAMESPACE_$CI_PROJECT_PATH:$CI_BUILD_REF
+  CLAIR_ADDR: https://clair.udd.bogops.io
+  CLAIR_THRESHOLD: '3'
+  KLAR_IMAGE: udyrfrykte/klar:v1.2.1
+
+stages:
+  - package
+  - test
+  - release
+
+Package Docker Image:
+  stage: package
+  image: docker:$DOCKER_VERSION
+  services:
+    - docker:$DOCKER_VERSION-dind
+  script:
+    - docker info
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build --pull --build-arg COMMIT=$CI_BUILD_REF --build-arg BUILD_DATE=$(date -Iseconds) --build-arg PETCLINIC_VERSION=$PETCLINIC_VERSION -t $LOCAL_IMAGE .
+    - docker tag $LOCAL_IMAGE $CONTAINER_COMMIT_IMAGE
+    - docker push $CONTAINER_COMMIT_IMAGE
+
+Analyse Docker Image:
+  stage: test
+  image: $KLAR_IMAGE
+  script:
+    - export DOCKER_USER="$CI_REGISTRY_USER"
+    - export DOCKER_PASSWORD="$CI_REGISTRY_PASSWORD"
+    - klar $CONTAINER_COMMIT_IMAGE > report.txt
+  artifacts:
+    when: always
+    paths:
+      - report.txt
+
+Test Docker Image:
+  stage: test
+  image: ubuntu:16.04
+  services:
+    - $CONTAINER_COMMIT_IMAGE
+    - mariadb:10.1
+  variables:
+    MYSQL_ROOT_PASSWORD: petclinic
+    MYSQL_DATABASE: petclinic
+  script:
+    - cat /etc/hosts
+    - apt-get update
+    - apt-get install -y curl
+    - curl -sfq http://localhost:8080/
+    - /bin/true
+
+Release Docker Image:
+  stage: release
+  image: docker:$DOCKER_VERSION
+  services:
+    - docker:$DOCKER_VERSION-dind
+  script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker pull $CONTAINER_COMMIT_IMAGE
+    - docker tag $CONTAINER_COMMIT_IMAGE $CONTAINER_REF_IMAGE
+    - docker tag $CONTAINER_COMMIT_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker tag $CONTAINER_COMMIT_IMAGE $CONTAINER_LATEST_IMAGE
+    - docker push $CONTAINER_REF_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_LATEST_IMAGE

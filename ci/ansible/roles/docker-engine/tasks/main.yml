@@ -1,0 +1,83 @@
+# cistack/roles/docker-engine/tasks/main.yml
+---
+
+- name: Gather facts
+  setup:
+
+- name: Install required packages
+  become: true
+  apt:
+    name: apt-transport-https
+    state: present
+
+- name: Enable overlay driver
+  become: true
+  modprobe:
+    name: overlay
+    state: present
+
+- name: Persist overlay driver
+  become: true
+  lineinfile:
+    line: overlay
+    dest: /etc/modules-load.d/ansible-managed.conf
+    create: true
+    state: present
+    insertafter: EOF
+
+- name: Install signing key
+  become: true
+  apt_key:
+    keyserver: hkp://ha.pool.sks-keyservers.net:80
+    id: 58118E89F3A912897C070ADBF76221572C52609D
+
+- name: Install Docker repository
+  become: true
+  apt_repository:
+    repo: "{{ docker_repo }}"
+
+
+- name: Apt Update
+  become: true
+  apt:
+    update_cache: yes
+
+- name: Install Docker
+  become: true
+  apt:
+    name: "docker-engine={{ docker_package }}"
+
+- name: Install PIP (Debian)
+  become: true
+  command: easy_install pip
+  args:
+    creates: /usr/local/bin/pip
+  when: ansible_distribution == 'Debian'
+
+- name: Install PIP (Ubuntu)
+  become: true
+  apt:
+    name: python-pip
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Install docker-py
+  become: true
+  pip:
+    name: docker-py
+    version: 1.9.0
+
+- name: Install docker init file
+  become: true
+  template:
+    src: docker.service.j2
+    dest: /etc/systemd/system/docker.service
+  notify:
+    - reload systemd
+    - restart docker
+
+- name: Start/Enable Docker engine
+  become: true
+  service:
+    name: docker
+    state: started
+    enabled: true

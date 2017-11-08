@@ -1,0 +1,13 @@
+---
+
+maintainers:
+- Benoît GASTINNE bgastinne@octo.com (@bgastinne)
+- Arnaud MAZIN amazin@octo.com (@amazin)
+
+repository: 'devs/alpine'
+
+tags:
+  'latest': 2bc86069ea4ee759ab3c1333a4f98ef16895d461
+  '3': 2bc86069ea4ee759ab3c1333a4f98ef16895d461
+  '3.5': 2bc86069ea4ee759ab3c1333a4f98ef16895d461
+  '3.5.2': 2bc86069ea4ee759ab3c1333a4f98ef16895d461

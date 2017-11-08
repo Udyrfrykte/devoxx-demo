@@ -1,0 +1,34 @@
+---
+
+haproxy_services:
+  gitlab:
+    public_fqdn: "{{ gitlab_external_fqdn }}"
+    back_fqdn: "{{ hostvars[groups['gitlab'][0]]['ansible_default_ipv4']['address'] }}"
+    back_port: "{{ gitlab_http_port }}"
+  gitlab_ssh:
+    tcp: true
+    public_port: "{{ gitlab_ssh_port }}"
+    back_fqdn: "{{ hostvars[groups['gitlab'][0]]['ansible_default_ipv4']['address'] }}"
+    back_port: "{{ gitlab_ssh_port }}"
+  gitlab-registry:
+    public_fqdn: "{{ gitlab_registry_external_fqdn }}"
+    back_fqdn: "{{ hostvars[groups['gitlab'][0]]['ansible_default_ipv4']['address'] }}"
+    back_port: "{{ gitlab_http_port }}"
+  registry:
+    public_fqdn: "{{ registry_external_fqdn }}"
+    additional_acl: "!{ path_reg ^/v2/{{ registry_external_fqdn }}/[^/]+/[^/]+/_trust }"
+    back_fqdn: "{{ hostvars[groups['registry'][0]]['ansible_default_ipv4']['address'] }}"
+    back_port: "{{ registry_port }}"
+  notary:
+    public_fqdn: "{{ registry_external_fqdn }}"
+    additional_acl: "{ path_reg ^/v2/{{ registry_external_fqdn }}/[^/]+/[^/]+/_trust }"
+    back_fqdn: "{{ hostvars[groups['notary-server'][0]]['ansible_default_ipv4']['address'] }}"
+    back_port: "{{ notary_server_port }}"
+  portus:
+    public_fqdn: "{{ portus_external_fqdn }}"
+    back_fqdn: "{{ hostvars[groups['portus'][0]]['ansible_default_ipv4']['address'] }}"
+    back_port: "{{ portus_port }}"
+  clair:
+    public_fqdn: "{{ clair_external_fqdn }}"
+    back_fqdn: "{{ hostvars[groups['clair'][0]]['ansible_default_ipv4']['address'] }}"
+    back_port: "{{ clair_port }}"

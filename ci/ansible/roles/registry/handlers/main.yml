@@ -1,0 +1,15 @@
+---
+
+- name: restart registry
+  become: true
+  docker_container:
+    name: registry
+    image: "{{ registry_registry }}{{ registry_repository }}:{{ registry_version }}"
+    published_ports:
+      - '{{ registry_port }}:5000'
+    volumes:
+      - '/opt/docker-data/registry/data:/var/lib/docker-registry'
+      - '/opt/docker-data/registry/config:/etc/docker/registry'
+    state: started
+    recreate: true
+    restart_policy: unless-stopped

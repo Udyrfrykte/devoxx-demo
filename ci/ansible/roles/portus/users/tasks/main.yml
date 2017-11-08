@@ -1,0 +1,21 @@
+---
+
+- name: Create Portus users
+  become: true
+  shell: >
+    docker run --rm
+    -e PORTUS_MACHINE_FQDN_VALUE={{ portus_external_fqdn }}
+    -e RAILS_ENV=production
+    -e PORTUS_SECRET_KEY_BASE="{{ fetch_secret_key_base.stdout }}"
+    -e PORTUS_KEY_PATH=/portus/config/server.key
+    -e PORTUS_PASSWORD="{{ fetch_password.stdout }}"
+    -e PORTUS_PRODUCTION_HOST="{{ hostvars[groups['portus'][0]]['ansible_default_ipv4']['address'] }}"
+    -e PORTUS_PRODUCTION_USERNAME=portus
+    -e PORTUS_PRODUCTION_PASSWORD=portus
+    -e PORTUS_PRODUCTION_DATABASE=portus
+    {{ portus_registry }}{{ portus_repository }}:{{ portus_version }}
+    rake portus:create_user['{{ item.key }}','{{ item.value.mail }}','{{ item.value.password }}',{{ 'true' if item.value.admin|default(false)|bool else 'false' }}]
+  register: result
+  changed_when: "{{ 'Username has already been taken' not in result.stderr }}"
+  failed_when: "{{ result.rc != 0 and 'Username has already been taken' not in result.stderr }}"
+  with_dict: "{{ portus_users }}"

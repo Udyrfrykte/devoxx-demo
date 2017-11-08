@@ -1,0 +1,27 @@
+---
+
+- hosts: vms
+  tags: always
+  tasks:
+    - name: Gather facts once and for all
+      check_mode: no
+      action: setup
+
+- hosts: portus
+  roles:
+    - role: portus/users
+      portus_users:
+        root:
+          password: P@ssw0rd2Change4root
+          mail: root@example.org
+          admin: true
+        admin-a:
+          password: test1Atest
+          mail: admin-a@example.org
+          admin: true
+        dev-a:
+          password: test1Atest
+          mail: dev-a@example.org
+        bot_promotion:
+          password: 9KNcvpp2PrBgxyeY91z7XuyVdaVaVqhD4VLI3Xoao7I=
+          mail: bot_promotion@example.org

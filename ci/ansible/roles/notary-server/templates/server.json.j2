@@ -1,0 +1,21 @@
+{
+	"server": {
+		"http_addr": ":5100"
+	},
+	"trust_service": {
+		"type": "remote",
+		"hostname": "notary-signer.{{ root_fqdn }}.internal",
+		"port": "{{ notary_signer_port }}",
+		"tls_ca_file": "/etc/notary/ca.pem",
+		"key_algorithm": "ecdsa",
+		"tls_client_cert": "/etc/notary/client.pem",
+		"tls_client_key": "/etc/notary/client.key"
+	},
+	"logging": {
+		"level": "info"
+	},
+	"storage": {
+		"backend": "postgres",
+		"db_url": "postgres://{{ notary_server_db_user }}:{{ notary_server_db_password }}@{{ notary_server_db_host }}:{{ notary_server_db_port }}/{{ notary_server_db }}?sslmode=disable"
+	}
+}

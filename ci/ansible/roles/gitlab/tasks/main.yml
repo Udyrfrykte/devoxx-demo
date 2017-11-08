@@ -1,0 +1,69 @@
+---
+
+- name: Create directories for GitLab's persistent data
+  become: true
+  file:
+    path: "/opt/docker-data/gitlab/{{ item }}"
+    state: directory
+  with_items:
+    - config
+    - logs
+    - data
+
+- name: Log in to registry
+  become: true
+  docker_login:
+    registry: "{{ gitlab_registry }}"
+    username: "{{ gitlab_registry_user }}"
+    password: "{{ gitlab_registry_password }}"
+    reauthorize: yes
+  when: gitlab_registry_user is defined and gitlab_registry_password is defined
+
+- name: Pull GitLab image
+  become: true
+  docker_image:
+    name: "{{ gitlab_registry }}{{ gitlab_repository }}"
+    tag: "{{ gitlab_version }}"
+    state: present
+    force: true
+
+- name: Clean token
+  become: true
+  file:
+    dest: /root/.docker/config.json
+    state: absent
+
+- name: Launch GitLab container
+  become: true
+  docker_container:
+    name: gitlab
+    image: "{{ gitlab_registry }}{{ gitlab_repository }}:{{ gitlab_version }}"
+    published_ports:
+      - "{{ gitlab_http_port }}:80"
+      - '2289:22'
+    env:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://{{ gitlab_external_fqdn }}'
+        gitlab_rails['gitlab_ssh_host'] = '{{ gitlab_external_fqdn }}'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2289
+        registry_external_url 'https://{{ gitlab_registry_external_fqdn }}'
+        gitlab_rails['registry_enabled'] = true
+        nginx['listen_port'] = 80 # override only if you use a reverse proxy: https://docs.gitlab.com/omnibus/settings/nginx.html#setting-the-nginx-listen-port
+        nginx['listen_https'] = false # override only if your reverse proxy internally communicates over HTTP: https://docs.gitlab.com/omnibus/settings/nginx.html#supporting-proxied-ssl
+        nginx['proxy_set_headers'] = {
+         "X-Forwarded-Proto" => "https",
+         "X-Forwarded-Ssl" => "on"
+        }
+        registry_nginx['listen_port'] = 80 # override only if you use a reverse proxy: https://docs.gitlab.com/omnibus/settings/nginx.html#setting-the-nginx-listen-port
+        registry_nginx['listen_https'] = false # override only if your reverse proxy internally communicates over HTTP: https://docs.gitlab.com/omnibus/settings/nginx.html#supporting-proxied-ssl
+        registry_nginx['proxy_set_headers'] = {
+          "X-Forwarded-Proto" => "https",
+          "X-Forwarded-Ssl" => "on"
+        }
+      GITLAB_ROOT_PASSWORD: "{{ gitlab_root_password }}"
+    volumes:
+      - /opt/docker-data/gitlab/config:/etc/gitlab
+      - /opt/docker-data/gitlab/logs:/var/log/gitlab
+      - /opt/docker-data/gitlab/data:/var/opt/gitlab
+    state: started
+    restart_policy: unless-stopped

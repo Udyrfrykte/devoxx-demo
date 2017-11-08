@@ -1,0 +1,17 @@
+{
+
+  "server": {
+    "grpc_addr": ":7899",
+    "tls_cert_file": "/etc/notary/signer.pem",
+    "tls_key_file": "/etc/notary/signer.key",
+    "client_ca_file": "/etc/notary/ca.pem"
+  },
+  "logging": {
+    "level": "info"
+  },
+  "storage": {
+		"backend": "postgres",
+		"db_url": "postgres://{{ notary_signer_db_user }}:{{ notary_signer_db_password }}@{{ notary_signer_db_host }}:{{ notary_signer_db_port }}/{{ notary_signer_db }}?sslmode=disable",
+    "default_alias": "passwordalias1"
+  }
+}

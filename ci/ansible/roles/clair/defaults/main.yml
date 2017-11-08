@@ -1,0 +1,9 @@
+---
+
+clair_version: v1.2.6
+
+clair_registry: "quay.io/"
+# clair_registry_user: undefined by default
+# clair_registry_password: undefined by default
+
+clair_repository: "coreos/clair"

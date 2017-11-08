@@ -1,0 +1,88 @@
+---
+
+variables:
+  DOCKER_VERSION: 17.03.0-ce
+  DOCKER_DRIVER: overlay2
+  DOCKER_HOST: tcp://localhost:2375
+  PROD_REGISTRY: registry.udd.bogops.io
+  NOTARY_CLIENT_IMAGE: udyrfrykte/notary-client:0.5.0
+
+stages:
+  - parse
+  - notary
+  - docker
+
+Parse manifests:
+  stage: parse
+  image: python:3.6
+  script:
+    - pip3 install virtualenv
+    - cd parser
+    - source create_virtualenv.sh
+    - cd ..
+    - /bin/bash -x generate_commands.sh
+  artifacts:
+    paths:
+      - notary_commands.sh
+      - notary_publish_commands.sh
+      - docker_commands.sh
+
+Execute Notary commands:
+  stage: notary
+  image: $NOTARY_CLIENT_IMAGE
+  dependencies:
+    - Parse manifests
+  variables:
+    NOTARY_CONFIG: '{ "trust_dir" : "/root/.docker/trust", "remote_server": { "url": "https://${PROD_REGISTRY}:443" } }'
+  script:
+    - export HERE=${PWD}
+    - mkdir /root/.notary
+    - echo "$NOTARY_CONFIG" >| /root/.notary/config.json
+    - notary version
+    - cat /root/.notary/config.json
+    - apt-get update
+    - apt-get install -y git
+    - git config --global user.email "bot_admin@example.org"
+    - git config --global user.name "Admin Bot"
+    - export GITLAB_URL="$(echo "$CI_PROJECT_URL" | cut -d '/' -f 3)"
+    - git clone "https://${PROMOTER_TRUST_USER}:${PROMOTER_TRUST_PASSWORD}@${GITLAB_URL}/admins/promoter-trust.git" /root/.docker/trust
+    - /bin/bash -x notary_commands.sh
+    - cd /root/.docker/trust
+    - git add .
+    - 'git commit -m "build #$CI_BUILD_ID pre publish" || true'
+    - git status | grep 'nothing to commit'
+    - git push -u origin master
+    - cd ${HERE}
+    - /bin/bash -x notary_publish_commands.sh
+    - cd /root/.docker/trust
+    - git add .
+    - 'git commit -m "build #$CI_BUILD_ID post publish" || true'
+    - git status | grep 'nothing to commit'
+    - git push -u origin master
+    - cd ${HERE}
+    - cp -rp /root/.docker/trust ./promoter-trust
+  artifacts:
+    paths:
+      - promoter-trust
+
+Execute Docker commands:
+  stage: docker
+  image: docker:$DOCKER_VERSION
+  services:
+    - docker:$DOCKER_VERSION-dind
+  dependencies:
+    - Parse manifests
+    - Execute Notary commands
+  script:
+    - apk update
+    - apk add expect
+    - docker info
+    - mkdir ~/.docker
+    - mkdir ~/.docker/trust
+    - mkdir ~/.docker/trust/private
+    - cp -rp ./promoter-trust/private /root/.docker/trust/private/tuf_keys
+    - cp -rp ./promoter-trust/tuf /root/.docker/trust/tuf
+    - echo "$DOCKER_AUTH_CONFIG" > ~/.docker/config.json
+    - pwd
+    - ls -l
+    - /bin/sh -x docker_commands.sh

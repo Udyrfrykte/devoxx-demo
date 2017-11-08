@@ -1,0 +1,15 @@
+import BaseHTTPServer
+
+class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+   def do_GET(self):
+       self.send_response(200)
+       self.send_header("Content-type", "text/plain")
+       self.end_headers()
+       self.wfile.write("{{ item['challenge_data'][item.item]['http-01']['resource_value'] }}")
+
+if __name__ == '__main__':
+   server_class = BaseHTTPServer.HTTPServer
+   httpd = server_class(('', 80), MyHandler)
+   print('start serving...')
+   httpd.handle_request()
+   print('...finished serving.')

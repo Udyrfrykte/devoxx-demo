@@ -1,0 +1,6 @@
+---
+
+- name: restart haproxy
+  include: ../tasks/docker_command.yml
+  vars:
+    docker_restart: true

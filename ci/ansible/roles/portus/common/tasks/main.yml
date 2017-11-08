@@ -1,0 +1,51 @@
+---
+
+- name: Creates directories for portus installation flags and config
+  become: true
+  file:
+    path: "/opt/docker-data/portus/{{ item }}"
+    state: directory
+  with_items:
+    - install-flags
+    - config
+    - certs
+
+- name: Check if random secret key exists
+  become: true
+  stat:
+    path: /opt/docker-data/portus/install-flags/secret_key_base
+  register: check_secret_key_base
+
+- name: Create random secret key
+  become: true
+  copy:
+    content: "{% for n in range(128) %}{{ ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f']|random }}{% endfor %}"
+    dest: /opt/docker-data/portus/install-flags/secret_key_base
+    mode: 0600
+  when: not check_secret_key_base.stat.exists
+
+- name: Fetch random secret key
+  become: true
+  command: cat /opt/docker-data/portus/install-flags/secret_key_base
+  register: fetch_secret_key_base
+  changed_when: false
+
+- name: Check if random password exists
+  become: true
+  stat:
+    path: /opt/docker-data/portus/install-flags/password
+  register: check_password
+
+- name: Create random password
+  become: true
+  copy:
+    content: "{% for n in range(64) %}{{ ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'] |random }}{% endfor %}"
+    dest: /opt/docker-data/portus/install-flags/password
+    mode: 0600
+  when: not check_password.stat.exists
+
+- name: Fetch random password
+  become: true
+  command: cat /opt/docker-data/portus/install-flags/password
+  register: fetch_password
+  changed_when: false

@@ -1,0 +1,45 @@
+---
+
+- name: Creates directories for clair config
+  become: true
+  file:
+    path: /opt/docker-data/clair/config
+    state: directory
+
+- name: Log in to registry
+  become: true
+  docker_login:
+    registry: "{{ clair_registry }}"
+    username: "{{ clair_registry_user }}"
+    password: "{{ clair_registry_password }}"
+    reauthorize: yes
+  when: clair_registry_user is defined and clair_registry_password is defined
+
+- name: Pull clair image
+  become: true
+  docker_image:
+    name: "{{ clair_registry }}{{ clair_repository }}"
+    tag: "{{ clair_version }}"
+    state: present
+    force: true
+
+- name: Clean token
+  become: true
+  file:
+    dest: /root/.docker/config.json
+    state: absent
+
+- name: Configure clair
+  become: true
+  template:
+    src: config.yaml.j2
+    dest: /opt/docker-data/clair/config/config.yaml
+  notify: restart clair
+
+- include: docker_command.yml
+  vars:
+    docker_restart: false
+
+- name: Include smoke tests
+  include: test.yml
+  tags: test

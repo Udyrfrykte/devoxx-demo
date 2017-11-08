@@ -1,0 +1,46 @@
+---
+
+users:
+  bga:
+    ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIrXOf9tr+2fP58OG7HecCVwXYd9h58tZKrVzGRTRai1 bga@octo-bga"
+  sbo:
+    ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBXK2b4pKENOgZEzKjbOpVlQrRTjui3aal9nQNoKEfXy sbo@octo.com"
+  amz:
+    ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAIEAzCeYEes2BXvqBHJkb3myTK1gzcmEQgZee80bCFEejYQdE/kaJfxQsVhs5iUtC+Mp/Q6cTQkmhNETQnYkxta5fBOXVEaEHLBpBkPaThzEf5vYF8u9u/N4aXAOjG0EFAStwUF+GR+xzpIBZuW1jTyFVfq7C1MFJ8k7yNCuJ2abC68= amazin@octo.com"
+  mba:
+    ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDWuhucrxnguXTvmn+mdq0fW6E9HXHNzTfhG4Z7ye6PCQ351eSAtzykZ/ajRO8eFZiZg7fXEB+M8BhjMz97UhrxJfHIF4M3w0qQ8olBYHHIHcY7cZyUYV4e3s9LWH2W513+3B7//LCVQTpF9Lb65A9xx5f9gZfXq42J7AYbgvsMvDrs1FvO7p+gmVhAbf6tx2woyNByB4BS3Md65UM9rxMDa3bo0x0FBMWG3/xaYHv3k+WUaU8Koi5ErUWAHWxl5Sft6jpD/8NIVJEGj5wtRnhnx2RE0QEIQpmPJl6pZX2iK6/I5ougHygrFrdPEunUvisDmtUgyAFYpgQTniMrP5gEzuxZGebhW99wKse+QGa9hsQgA7cHHtb7Hh6QW+yvD25QGm7N/UMI+R27pDKp7nZJ5vhczg6bjShYSK4efXfJGgKn2ftrllyEL37Vc7jFUQ1HWxVH3g1uBAqD5/1ra4D/eEWFDqav3HQwyO4btsRBBmDcAnTnhuvjJXZVOkJgHquiokuSCVYZEJMFXrFiAc4jW0H9a3Y4WZk022I0zHjmuyYM6Vl/4D6ioI0uMGccZgxST7bZzz7YqIWorxuBiLCi/ZoM3VlcW5OKbCMfQ3vM/WG3SCqmlNPfPtF/wtzN/ZcyJXmd0izvOfphvJXQg6LFW7nBSb+9iQeC1QdeemmgGQ== mba@rie"
+  aha:
+    ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDVuU3pi4arxB3O9A2ETLfmpVKDeVV5t670LVh3h0g6slWcX3ZNSKXpRviLbHohR4+Kg7qdB4yzurDkAaK6wlvsgk0AWdUHDv+v+8ckvJlLDoLk6z4QHsXEJ95Kc6yS+Mi8Wm8yExMikc1At8rd1Zqhr/n1NO+8IrSEeEj0lh/UWr5qF46MjmkVJ4WGNrZrBbXSUsszq1lV3SVJHJx/djeqMxvwPhKVO+v5YN0gSA6MjTFdKlXjrlbLxwJSdzp4P/faBWpnMGKEPHSl2HyOz4olCrXR/xiU9jqC4cBYPp3QfuV9scHtKuBYf4z8moSzyN+NctulFa6gjbe4hn5ZVR1/"
+  kbe:
+    ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDPdbyH5WuRUWKA8skY0/Qo2iG9X0I4LclzscT8tN8B74hR2+BjPHVjoremsZwh8cALosI2qH6mRm6c6Z2Vo8uTLkHtMNWODUhVLPPZcMNAJfNkFRIkr2VvMYLR8P44cnk3Wsgg2XYwOBuHpcZ5KNlmr4rBY58Xx2b1jlJ/P9/w+xTmD9BYOdM720ixuIfPSUif56ghXOnb0aDLnFC7c2jW5gBdftOWoEe9Du2ymm3kpdVZerCHP20u306U4xGbJdAovkptJUa+Fv/1p3JuOfIW6mIJjE/UEnlvQgwgh1VXO2tQUX8gpvb6wUfusOYfOgEeUOpprJETr+83Mcgi3KIT"
+  dto:
+    ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDNzYR4V27H209yg1n3pTnrtxehMctALNB+nMYVTREg3d4t4P6WM7KUvF96qusNE7o6xCqLvwauZJK8lLLuy0ZIXV6EJrfJok+6X3oWBF6xzkQ0NPCmH1YzHsJjJQQCAlDQMiXwJmjLUwc4kXuOe7wfYZbYuRRsVjSdg4cL+jvdHJPgKJ5NUT8oHAMozPPbY+8pKpgcPY83IRvi8kPZtnt+5pBPCZIBimOpsjpEEPG0G5T0ue8ZVt/dDiTpI7EzSyi1j3uhtvAgUk+YsLmxqCpcZI6uk7WkK3kezyjhSXuHUpn3ijjwBt6lzQrPzlAYZ1TTrBjln0n5AxH90uE7V4ld"
+  gci:
+    ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILyA8FoMNzCBAawT6NhQV/AhADADW/gm3jkmCMzz3kMg gitlab.ci@example.com"
+
+root_fqdn: "udd.bogops.io"
+gitlab_external_fqdn: "gitlab.{{ root_fqdn }}"
+gitlab_registry_external_fqdn: "registry.{{ gitlab_external_fqdn }}"
+registry_external_fqdn: "registry.{{ root_fqdn }}"
+portus_external_fqdn: "portus.{{ root_fqdn }}"
+clair_external_fqdn: "clair.{{ root_fqdn }}"
+
+# registry: ""
+# registry: "{{ groups['bootstrap-registry']|first }}:5000/"
+# docker_insecure_registries: "{{ groups['bootstrap-registry']|first }}:5000"
+
+test_dind_image: rie/docker-dind:1.12.3-0
+test_clair_tools_image: rie/clair-tools:0.1
+
+gitlab_http_port: 80
+gitlab_ssh_port: 2289
+clair_port: 6060
+clair_health_port: 6061
+clair_db_port: 5432
+registry_port: 5000
+portus_port: 3000
+portus_db_port: 3306
+notary_server_port: 5100
+notary_server_db_port: 5433
+notary_signer_port: 7899
+notary_signer_db_port: 5434

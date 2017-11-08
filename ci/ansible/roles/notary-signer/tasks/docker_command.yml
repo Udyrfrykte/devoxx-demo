@@ -1,0 +1,17 @@
+---
+
+- name: restart notary-signer
+  become: true
+  docker_container:
+    name: notary-signer
+    image: "{{ notary_signer_registry }}{{ notary_signer_repository }}:{{ notary_signer_version }}"
+    published_ports:
+      - '{{ notary_signer_port }}:7899'
+    volumes:
+      - '/opt/docker-data/notary-signer/config/:/etc/notary/'
+    env:
+      NOTARY_SIGNER_PASSWORDALIAS1: "{{ lookup('file', playbook_dir + '/openssl-ca/intermediate/certs/notary-signer.' + root_fqdn + '.cert.pem' ) | hash('sha256') }}"
+    command: 'notary-signer -config=/etc/notary/signer.json'
+    state: started
+    recreate: "{{ docker_restart | default(false) | bool }}"
+    restart_policy: unless-stopped

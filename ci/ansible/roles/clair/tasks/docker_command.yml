@@ -1,0 +1,15 @@
+---
+
+- name: restart clair
+  become: true
+  docker_container:
+    name: clair
+    image: "{{ clair_registry }}{{ clair_repository }}:{{ clair_version }}"
+    published_ports:
+      - '{{ clair_port }}:6060'
+      - '{{ clair_health_port }}:6061'
+    volumes:
+      - '/opt/docker-data/clair/config/:/etc/clair/'
+    state: started
+    recreate: "{{ docker_restart | default(false) | bool }}"
+    restart_policy: unless-stopped

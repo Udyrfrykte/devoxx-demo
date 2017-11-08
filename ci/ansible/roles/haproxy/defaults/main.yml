@@ -1,0 +1,9 @@
+---
+
+haproxy_version: 1.7.3
+
+haproxy_registry: ''
+# haproxy_registry_user: undefined by default
+# haproxy_registry_password: undefined by default
+
+haproxy_repository: "haproxy"

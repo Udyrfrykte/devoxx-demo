@@ -1,0 +1,109 @@
+---
+
+- hosts: vms
+  gather_facts: true
+  tags:
+    - always
+
+- hosts: vms
+  roles:
+    - role: docker-engine
+      tags: docker-engine
+
+- hosts: bootstrap-registry
+  roles:
+    - role: registry
+      tags: bootstrap-registry
+
+- hosts: vms
+  tags: always
+  tasks:
+    - name: Gather facts once and for all
+      action: setup
+
+- hosts: gitlab
+  roles:
+    - role: gitlab
+      tags: gitlab
+
+- hosts: portus
+  roles:
+    - role: portus
+      tags: portus
+
+- hosts: registry
+  roles:
+    - role: registry
+      tags: registry
+
+- hosts: haproxy
+  roles:
+    - role: haproxy
+      tags: haproxy
+
+- hosts: portus
+  roles:
+    - role: portus/config
+      tags: portus-config
+
+- hosts: clair-db
+  roles:
+    - role: postgresql
+      postgresql_user: clair
+      postgresql_password: clairpassword
+      postgresql_db: clair
+      postgresql_container_name: postgresql_clair
+      postgresql_port: "{{ clair_db_port }}"
+      tags: postgresql, clair-db
+
+- hosts: clair
+  roles:
+    - role: clair
+      clair_db_user: clair
+      clair_db_password: clairpassword
+      clair_db: clair
+      clair_db_host: "{{ hostvars[groups['clair-db'][0]]['ansible_default_ipv4']['address'] }}"
+      tags: clair
+
+- hosts: notary-signer-db
+  roles:
+    - role: postgresql
+      postgresql_user: notary-signer
+      postgresql_password: notary-signerpassword
+      postgresql_db: notary-signer
+      postgresql_container_name: postgresql_notary-signer
+      postgresql_port: "{{ notary_signer_db_port }}"
+      tags: postgresql, notary-signer-db
+
+- hosts: notary-signer
+  roles:
+    - role: notary-signer
+      notary_signer_db_user: notary-signer
+      notary_signer_db_password: notary-signerpassword
+      notary_signer_db: notary-signer
+      notary_signer_db_host: "{{ hostvars[groups['notary-signer-db'][0]]['ansible_default_ipv4']['address'] }}"
+      tags: notary-signer
+
+- hosts: notary-server-db
+  roles:
+    - role: postgresql
+      postgresql_user: notary-server
+      postgresql_password: notary-serverpassword
+      postgresql_db: notary-server
+      postgresql_container_name: postgresql_notary-server
+      postgresql_port: "{{ notary_server_db_port }}"
+      tags: postgresql, notary-server-db
+
+- hosts: notary-server
+  roles:
+    - role: notary-server
+      notary_server_db_user: notary-server
+      notary_server_db_password: notary-serverpassword
+      notary_server_db: notary-server
+      notary_server_db_host: "{{ hostvars[groups['notary-server-db'][0]]['ansible_default_ipv4']['address'] }}"
+      tags: notary-server
+
+- hosts: gitlab-runner
+  roles:
+    - role: gitlab-runner
+      tags: gitlab-runner

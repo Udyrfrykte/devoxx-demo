@@ -1,0 +1,37 @@
+---
+
+variables:
+  CLAIR_ADDR: https://clair.udd.bogops.io
+  CLAIR_THRESHOLD: '3'
+  KLAR_IMAGE: udyrfrykte/klar:v1.2.1
+
+stages:
+  - parse
+  - run
+
+Parse manifests:
+  stage: parse
+  image: python:3.6
+  script:
+    - pip3 install virtualenv
+    - cd .utils/parser
+    - source create_virtualenv.sh
+    - cd ..
+    - /bin/bash -x generate_commands.sh
+  artifacts:
+    paths:
+      - clair_commands.sh
+
+Execute Clair commands:
+  stage: run
+  image: $KLAR_IMAGE
+  dependencies:
+    - Parse manifests
+  script:
+    - export DOCKER_USER="$CI_REGISTRY_USER"
+    - export DOCKER_PASSWORD="$CI_REGISTRY_PASSWORD"
+    - mkdir clair_output
+    - /bin/bash -x clair_commands.sh
+  artifacts:
+    paths:
+      - clair_output/

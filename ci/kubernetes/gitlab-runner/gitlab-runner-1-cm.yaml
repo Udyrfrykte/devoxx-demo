@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-runner-1
+data:
+  config.toml: |
+    concurrent = 5
+    check_interval = 0
+    [[runners]]
+      name = "runner-1"
+      url = "https://gitlab.udd.bogops.io"
+      token = "b9c2b4fc5d254fd4eb8b2426cebd25"
+      executor = "kubernetes"
+      [runners.kubernetes]
+        cpu_request = "20m"
+        helper_cpu_request = "20m"
+        service_cpu_request = "20m"
+        privileged = true
+        image_pull_secrets = ["registry.gitlab.udd.bogops.io-creds"]

@@ -1,0 +1,17 @@
+---
+
+notary_signer_version: signer-0.5.0
+
+notary_signer_registry: ''
+# notary_signer_registry_user: undefined by default
+# notary_signer_registry_password: undefined by default
+
+notary_signer_repository: notary
+
+notary_signer_migration_version: 0.5.0
+
+notary_signer_migration_registry: ''
+# notary_signer_migration_registry_user: undefined by default
+# notary_signer_migration_registry_password: undefined by default
+
+notary_signer_migration_repository: udyrfrykte/notary-migration

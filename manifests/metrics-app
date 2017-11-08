@@ -1,0 +1,12 @@
+---
+
+maintainers:
+- Benoît GASTINNE bgastinne@octo.com (@bgastinne)
+- Arnaud MAZIN amazin@octo.com (@amazin)
+
+repository: 'devs/metrics-app'
+
+tags:
+  'latest': ab80326e32ff7a2790cfc9d95378376d6d1836ff
+  'stable': ab80326e32ff7a2790cfc9d95378376d6d1836ff
+  '1.2': ab80326e32ff7a2790cfc9d95378376d6d1836ff

@@ -1,0 +1,160 @@
+---
+
+- name: Create directory for gitlab-runner config
+  become: true
+  file:
+    path: /opt/docker-data/gitlab-runner/config/
+    state: directory
+
+- name: Log in to registry
+  become: true
+  docker_login:
+    registry: "{{ gitlab_runner_registry }}"
+    username: "{{ gitlab_runner_registry_user }}"
+    password: "{{ gitlab_runner_registry_password }}"
+    reauthorize: yes
+  when: gitlab_runner_registry_user is defined and gitlab_runner_registry_password is defined
+
+- name: Pull gitlab-runner image
+  become: true
+  docker_image:
+    name: "{{ gitlab_runner_registry }}{{ gitlab_runner_repository }}"
+    tag: "{{ gitlab_runner_version }}"
+    state: present
+    force: true
+
+- name: Clean token
+  become: true
+  file:
+    dest: /root/.docker/config.json
+    state: absent
+
+# - name: Make docker trust the registry | create directory
+#   become: true
+#   file:
+#     path: "/etc/docker/certs.d/{{ registry_external_fqdn }}"
+#     state: directory
+#
+# - name: Make docker trust the registry | install CA
+#   become: true
+#   copy:
+#     src: "{{ playbook_dir }}/openssl-ca/certs/ca.cert.pem"
+#     dest: "/etc/docker/certs.d/{{ registry_external_fqdn }}/ca.crt"
+#
+# - name: Make docker trust gitlab's registry | create directory
+#   become: true
+#   file:
+#     path: "/etc/docker/certs.d/{{ gitlab_registry_external_fqdn }}"
+#     state: directory
+#
+# - name: Make docker trust gitlab's registry | install CA
+#   become: true
+#   copy:
+#     src: "{{ playbook_dir }}/openssl-ca/certs/ca.cert.pem"
+#     dest: "/etc/docker/certs.d/{{ gitlab_registry_external_fqdn }}/ca.crt"
+
+- name: Launch gitlab-runner container
+  become: true
+  docker_container:
+    name: gitlab-runner
+    image: "{{ gitlab_runner_registry }}{{ gitlab_runner_repository }}:{{ gitlab_runner_version }}"
+    etc_hosts: |
+      {
+        '{{ gitlab_external_fqdn }}': '{{ hostvars[groups['haproxy'][0]]['ansible_default_ipv4']['address'] }}',
+        '{{ gitlab_registry_external_fqdn }}': '{{ hostvars[groups['haproxy'][0]]['ansible_default_ipv4']['address'] }}',
+        '{{ registry_external_fqdn }}': '{{ hostvars[groups['haproxy'][0]]['ansible_default_ipv4']['address'] }}',
+        '{{ portus_external_fqdn }}': '{{ hostvars[groups['haproxy'][0]]['ansible_default_ipv4']['address'] }}'
+      }
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/docker-data/gitlab-runner/config:/etc/gitlab-runner
+    state: started
+    restart_policy: unless-stopped
+
+- name: Retrieve runner's token if already registered
+  become: true
+  shell: >
+    cat /opt/docker-data/gitlab-runner/config/config.toml |
+    grep '  token = ' |
+    head -n 1 |
+    sed 's/^.*"\(.*\)".*$/\1/'
+  changed_when: false
+  failed_when: false
+  register: gitlab_read_runner_token
+
+# give time for GitLab to come up
+- name: Get token from api for root user on GitLab
+  delegate_to: "{{ groups.gitlab|first }}"
+  run_once: true
+  uri:
+    url: "http://localhost/api/v3/session"
+    method: POST
+    body_format: json
+    body:
+       login: root
+       password: "{{ gitlab_root_password }}"
+    status_code: 201
+    validate_certs: no
+  register: gitlab_root_token
+  until: not gitlab_root_token|failed
+  retries: 20
+  delay: 20
+  when: gitlab_read_runner_token.stdout|length == 0
+
+# cope with GitLap instability on boot
+- name: Get runners admin page (contains registration token)
+  delegate_to: "{{ groups.gitlab|first }}"
+  run_once: true
+  uri:
+    url: "http://localhost/admin/runners"
+    HEADER_PRIVATE-TOKEN: "{{ gitlab_root_token.json.private_token }}"
+    method: GET
+    return_content: true
+  changed_when: false
+  register: gitlab_admin_runners
+  until: not gitlab_admin_runners|failed
+  retries: 10
+  delay: 10
+  when: gitlab_read_runner_token.stdout|length == 0
+
+# We retrieved the HTML content of a page that contains the token and when
+# inspecting this HTML we can see that the token is on an isolated line that
+# looks like this :
+# <code id="runners-token">t0k3n</code>
+# knowing that, we use a jinja template the splits the lines of the content
+# into a list and then iterates on this list and only prints the line that
+# starts with <code id="runners-token"> and strips its XML tags, leaving only
+# the token.
+- name: Extract registration token
+  set_fact:
+    gitlab_runner_registration_token: "{% for line in gitlab_admin_runners.content.split('\n') %}{% if '<code id=\"runners-token\">' in line %}{{ line|striptags }}{% endif %}{% endfor %}"
+  when: gitlab_read_runner_token.stdout|length == 0
+
+# cope with GitLap instability on boot
+- name: Register runner with the CI API
+  delegate_to: "{{ groups.gitlab|first }}"
+  uri:
+    url: "http://localhost/ci/api/v1/runners/register"
+    method: POST
+    body_format: json
+    body:
+       token: "{{ gitlab_runner_registration_token }}"
+       description: "{{ inventory_hostname }}"
+    status_code: 201
+  register: gitlab_register_runner
+  until: not gitlab_register_runner|failed
+  retries: 5
+  delay: 10
+  when: gitlab_read_runner_token.stdout|length == 0
+
+- name: Extract runner token
+  set_fact:
+    gitlab_runner_token: "{{ gitlab_register_runner.json.token if gitlab_read_runner_token.stdout|length == 0 else gitlab_read_runner_token.stdout }}"
+
+- name: Configure gitlab-runner
+  become: true
+  template:
+    src: config.toml.j2
+    dest: /opt/docker-data/gitlab-runner/config/config.toml
+    mode: 0600
+  notify: restart gitlab-runner

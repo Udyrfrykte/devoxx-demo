@@ -1,0 +1,20 @@
+---
+
+- name: wait for HTTP port to be open
+  wait_for:
+    host: 127.0.0.1
+    port: 6060
+    timeout: 180
+
+- name: get namespaces
+  uri:
+    url: "http://localhost:{{ clair_port }}/v1/namespaces"
+    status_code: 200
+  register: namespaces_result
+  until: not namespaces_result | failed
+  retries: 60
+  delay: 10
+
+- name: Assert namespaces
+  assert:
+    that: "'Namespaces' in namespaces_result.json"

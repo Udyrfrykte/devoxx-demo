@@ -1,0 +1,9 @@
+---
+
+portus_version: 2.2.0
+
+portus_registry: ''
+# portus_registry_user: undefined by default
+# portus_registry_password: undefined by default
+
+portus_repository: udyrfrykte/portus
